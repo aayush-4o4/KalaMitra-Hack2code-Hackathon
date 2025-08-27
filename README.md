@@ -1,5 +1,5 @@
 # KalaMitra 🎨
-
+preview : https://kala-mitra-hack2code-hackathon.vercel.app/
 **AI-Powered Assistant for Indian Artisans**
 
 KalaMitra helps Indian artisans create professional marketplace listings with AI-generated descriptions, fair pricing, and social media content in multiple languages (English, Hindi, Gujarati) with automatic photo enhancement and cropping.
