@@ -44,6 +44,12 @@ interface PhotoEnhancement {
   whatsapp_status: string;
 }
 
+interface SharingData {
+  price: string;
+  contact: string;
+  caption: string;
+  hashtags: string;
+}
 export default function Home() {
   const [step, setStep] = useState<'form' | 'results'>('form');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,6 +57,13 @@ export default function Home() {
   const [enhancedPhotos, setEnhancedPhotos] = useState<PhotoEnhancement | null>(null);
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sharingData, setSharingData] = useState<SharingData>({
+    price: '',
+    contact: '',
+    caption: '',
+    hashtags: ''
+  });
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'hi' | 'gu'>('en');
   
   const [formData, setFormData] = useState<ProductForm>({
     product_name: '',
@@ -200,6 +213,13 @@ export default function Home() {
       };
       
       setListing(mockListing);
+      // Initialize sharing data with generated content
+      setSharingData({
+        price: `₹${mockListing.price_inr}`,
+        contact: 'Add your contact details',
+        caption: mockListing.instagram_caption_en,
+        hashtags: mockListing.hashtags.join(' ')
+      });
       setStep('results');
       setIsLoading(false);
     }, 2000);
@@ -321,6 +341,99 @@ export default function Home() {
 
   const generateGujaratiInstagramCaption = (data: ProductForm): string => {
     return `✨ હસ્તનિર્મિત ${data.product_name} ની સુંદરતા શોધો! 🎨\n\nપરંપરાગત તકનીકો અને પ્રીમિયમ ${data.materials} સાથે પ્રેમથી બનાવવામાં આવ્યું. દરેક ટુકડો આપણી સમૃદ્ધ સાંસ્કૃતિક વારસાની વાર્તા કહે છે। 🇮🇳\n\nસ્થાનિક કારીગરોને ટેકો આપો અને અધિકૃત ભારતીય હસ્તકલાનો એક ભાગ ઘરે લાવો! 🙏\n\n#હસ્તનિર્મિત #ગુજરાતીકલા #સ્થાનિકસમર્થન`;
+  };
+  const updateSharingData = (field: keyof SharingData, value: string) => {
+    setSharingData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const getCurrentCaption = () => {
+    if (!listing) return '';
+    
+    switch (selectedLanguage) {
+      case 'hi':
+        return listing.instagram_caption_hi || listing.instagram_caption_en;
+      case 'gu':
+        return listing.instagram_caption_gu || listing.instagram_caption_en;
+      default:
+        return listing.instagram_caption_en;
+    }
+  };
+
+  const shareToInstagram = (format: 'post' | 'story') => {
+    if (!enhancedPhotos) {
+      toast.error('Please upload a photo first');
+      return;
+    }
+
+    const imageUrl = format === 'post' ? enhancedPhotos.instagram_square : enhancedPhotos.instagram_story;
+    const caption = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    
+    // Create a temporary link to download the image with caption
+    const link = document.createElement('a');
+    link.href = imageUrl;
+    link.download = `instagram-${format}-${Date.now()}.jpg`;
+    link.click();
+    
+    // Copy caption to clipboard
+    navigator.clipboard.writeText(caption);
+    
+    // Try to open Instagram (mobile) or show instructions
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Try to open Instagram app
+      window.open('instagram://camera', '_blank');
+      toast.success(`Image downloaded and caption copied! Open Instagram to share your ${format}.`);
+    } else {
+      // Desktop instructions
+      toast.success(`Image downloaded and caption copied! Upload to Instagram on your mobile device.`);
+    }
+  };
+
+  const shareToWhatsApp = () => {
+    if (!enhancedPhotos) {
+      toast.error('Please upload a photo first');
+      return;
+    }
+
+    const message = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    
+    // Download image for WhatsApp
+    const link = document.createElement('a');
+    link.href = enhancedPhotos.whatsapp_status;
+    link.download = `whatsapp-status-${Date.now()}.jpg`;
+    link.click();
+    
+    // Open WhatsApp with message
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    toast.success('Image downloaded! Share via WhatsApp with the pre-filled message.');
+  };
+
+  const shareToFacebook = () => {
+    const message = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    
+    if (enhancedPhotos) {
+      // Download image
+      const link = document.createElement('a');
+      link.href = enhancedPhotos.enhanced;
+      link.download = `facebook-post-${Date.now()}.jpg`;
+      link.click();
+    }
+    
+    // Copy message to clipboard
+    navigator.clipboard.writeText(message);
+    
+    // Open Facebook
+    window.open('https://www.facebook.com/', '_blank');
+    toast.success('Caption copied! Upload your image to Facebook and paste the caption.');
+  };
+
+  const copyAllContent = () => {
+    const fullContent = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    navigator.clipboard.writeText(fullContent);
+    toast.success('Complete post content copied to clipboard!');
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -530,10 +643,64 @@ export default function Home() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Instagram className="w-5 h-5" />
-                  Social Media Preview
+                  Share Your Post
                 </CardTitle>
+                <CardDescription>
+                  Edit your price and contact, then share directly to social platforms
+                </CardDescription>
               </CardHeader>
               <CardContent>
+                {/* Editable Fields */}
+                <div className="space-y-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="price" className="text-sm font-medium">Price</Label>
+                      <Input
+                        id="price"
+                        value={sharingData.price}
+                        onChange={(e) => updateSharingData('price', e.target.value)}
+                        placeholder="₹299"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="contact" className="text-sm font-medium">Contact</Label>
+                      <Input
+                        id="contact"
+                        value={sharingData.contact}
+                        onChange={(e) => updateSharingData('contact', e.target.value)}
+                        placeholder="WhatsApp: +91-XXXXX-XXXXX"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="caption" className="text-sm font-medium">Caption</Label>
+                    <Textarea
+                      id="caption"
+                      value={sharingData.caption}
+                      onChange={(e) => updateSharingData('caption', e.target.value)}
+                      rows={4}
+                      className="mt-1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="hashtags" className="text-sm font-medium">Hashtags</Label>
+                    <Textarea
+                      id="hashtags"
+                      value={sharingData.hashtags}
+                      onChange={(e) => updateSharingData('hashtags', e.target.value)}
+                      rows={2}
+                      className="mt-1"
+                      placeholder="#HandmadeInIndia #IndianCrafts"
+                    />
+                  </div>
+                </div>
+
+                <Separator className="my-4" />
+
                 {/* Mock Instagram Post */}
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mb-4">
                   {/* Instagram Header */}
@@ -570,70 +737,72 @@ export default function Home() {
                     
                     <p className="text-sm mb-2">
                       <span className="font-semibold">kalamitra_official</span>{' '}
+                      {`${sharingData.caption.substring(0, 80)}...`}
                       {listing.instagram_caption_en.substring(0, 100)}...
+                    </p>
+                    <p className="text-sm text-gray-600 mb-1">
+                      <span className="font-semibold">Price:</span> {sharingData.price}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      <span className="font-semibold">Contact:</span> {sharingData.contact}
                     </p>
                   </div>
                 </div>
                 
-                {/* Caption Actions */}
-                <Tabs defaultValue="en" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="en">English</TabsTrigger>
-                    <TabsTrigger value="hi">हिंदी</TabsTrigger>
-                    <TabsTrigger value="gu">ગુજરાતી</TabsTrigger>
-                  </TabsList>
+                {/* Direct Sharing Buttons */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm">Share Directly</h4>
                   
-                  <TabsContent value="en" className="space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-sm">English Caption</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(listing.instagram_caption_en, 'English caption')}
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-xs max-h-24 overflow-y-auto">
-                      {listing.instagram_caption_en}
-                    </div>
-                  </TabsContent>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      onClick={() => shareToInstagram('post')}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      disabled={!enhancedPhotos}
+                    >
+                      <Instagram className="w-4 h-4 mr-2" />
+                      IG Post
+                    </Button>
+                    
+                    <Button
+                      onClick={() => shareToInstagram('story')}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      disabled={!enhancedPhotos}
+                    >
+                      <Instagram className="w-4 h-4 mr-2" />
+                      IG Story
+                    </Button>
+                    
+                    <Button
+                      onClick={shareToWhatsApp}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={!enhancedPhotos}
+                    >
+                      <MessageCircle className="w-4 h-4 mr-2" />
+                      WhatsApp
+                    </Button>
+                    
+                    <Button
+                      onClick={shareToFacebook}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      <Globe className="w-4 h-4 mr-2" />
+                      Facebook
+                    </Button>
+                  </div>
                   
-                  <TabsContent value="hi" className="space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-sm">Hindi Caption</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(listing.instagram_caption_hi!, 'Hindi caption')}
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-xs max-h-24 overflow-y-auto">
-                      {listing.instagram_caption_hi}
-                    </div>
-                  </TabsContent>
+                  <Separator />
                   
-                  <TabsContent value="gu" className="space-y-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-sm">Gujarati Caption</h4>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => copyToClipboard(listing.instagram_caption_gu!, 'Gujarati caption')}
-                      >
-                        <Copy className="w-3 h-3 mr-1" />
-                        Copy
-                      </Button>
-                    </div>
-                    <div className="bg-gray-50 p-3 rounded-lg text-xs max-h-24 overflow-y-auto">
-                      {listing.instagram_caption_gu}
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={copyAllContent}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy All Content
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -646,6 +815,12 @@ export default function Home() {
                 setListing(null);
                 setUploadedPhoto(null);
                 setEnhancedPhotos(null);
+                setSharingData({
+                  price: '',
+                  contact: '',
+                  caption: '',
+                  hashtags: ''
+                });
                 setFormData({
                   product_name: '',
                   materials: '',
@@ -662,10 +837,11 @@ export default function Home() {
               Create Another Listing
             </Button>
             <Button
-              onClick={() => copyToClipboard(JSON.stringify(listing, null, 2), 'Complete listing')}
+              onClick={copyAllContent}
               className="bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700"
             >
-              Export Listing Data
+              <Copy className="w-4 h-4 mr-2" />
+              Copy Complete Post
             </Button>
           </div>
         </div>
