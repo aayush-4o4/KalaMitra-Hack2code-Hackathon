@@ -1,8 +1,12 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import localFont from 'next/font/local';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = localFont({
+  src: '../public/fonts/inter.css',
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'KalaMitra - AI-Powered Assistant for Indian Artisans',
@@ -17,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={`${inter.variable} font-sans`}>{children}</body>
     </html>
   );
 }
