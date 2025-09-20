@@ -368,7 +368,47 @@ export default function Home() {
     const imageUrl = format === 'post' ? enhancedPhotos.instagram_square : enhancedPhotos.instagram_story;
     const caption = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
     
-    // Create a temporary link to download the image with caption
+    // Check if we're on mobile
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // For mobile: Try to use Web Share API with image
+      if (navigator.share && navigator.canShare) {
+        // Convert base64 to blob
+        fetch(imageUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const file = new File([blob], `instagram-${format}.jpg`, { type: 'image/jpeg' });
+            
+            if (navigator.canShare({ files: [file] })) {
+              navigator.share({
+                title: 'Share to Instagram',
+                text: caption,
+                files: [file]
+              }).then(() => {
+                toast.success(`Shared to ${format} successfully!`);
+              }).catch(() => {
+                fallbackShare(imageUrl, caption, format);
+              });
+            } else {
+              fallbackShare(imageUrl, caption, format);
+            }
+          })
+          .catch(() => {
+            fallbackShare(imageUrl, caption, format);
+          });
+      } else {
+        // Fallback for mobile without Web Share API
+        fallbackShare(imageUrl, caption, format);
+      }
+    } else {
+      // Desktop: Download image and copy caption
+      fallbackShare(imageUrl, caption, format);
+    }
+  };
+  
+  const fallbackShare = (imageUrl: string, caption: string, format: string) => {
+    // Download image
     const link = document.createElement('a');
     link.href = imageUrl;
     link.download = `instagram-${format}-${Date.now()}.jpg`;
@@ -377,16 +417,17 @@ export default function Home() {
     // Copy caption to clipboard
     navigator.clipboard.writeText(caption);
     
-    // Try to open Instagram (mobile) or show instructions
+    // Try to open Instagram
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
     if (isMobile) {
-      // Try to open Instagram app
-      window.open('instagram://camera', '_blank');
-      toast.success(`Image downloaded and caption copied! Open Instagram to share your ${format}.`);
+      // Try Instagram app deep link
+      setTimeout(() => {
+        window.location.href = 'instagram://camera';
+      }, 1000);
+      toast.success(`Image downloaded and caption copied! Opening Instagram...`);
     } else {
-      // Desktop instructions
-      toast.success(`Image downloaded and caption copied! Upload to Instagram on your mobile device.`);
+      toast.success(`Image downloaded and caption copied! Upload to Instagram manually.`);
     }
   };
 
@@ -397,37 +438,122 @@ export default function Home() {
     }
 
     const message = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // Download image for WhatsApp
+    if (isMobile && navigator.share) {
+      // Try Web Share API for mobile
+      fetch(enhancedPhotos.whatsapp_status)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], 'whatsapp-image.jpg', { type: 'image/jpeg' });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              title: 'Share to WhatsApp',
+              text: message,
+              files: [file]
+            }).then(() => {
+              toast.success('Shared to WhatsApp successfully!');
+            }).catch(() => {
+              fallbackWhatsAppShare(message);
+            });
+          } else {
+            fallbackWhatsAppShare(message);
+          }
+        })
+        .catch(() => {
+          fallbackWhatsAppShare(message);
+        });
+    } else {
+      fallbackWhatsAppShare(message);
+    }
+  };
+  
+  const fallbackWhatsAppShare = (message: string) => {
+    // Download image
     const link = document.createElement('a');
-    link.href = enhancedPhotos.whatsapp_status;
+    link.href = enhancedPhotos!.whatsapp_status;
     link.download = `whatsapp-status-${Date.now()}.jpg`;
     link.click();
     
     // Open WhatsApp with message
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    toast.success('Image downloaded! Share via WhatsApp with the pre-filled message.');
+    if (isMobile) {
+      // Try WhatsApp app deep link
+      setTimeout(() => {
+        window.location.href = `whatsapp://send?text=${encodeURIComponent(message)}`;
+      }, 1000);
+      toast.success('Image downloaded! Opening WhatsApp...');
+    } else {
+      // Desktop: Open WhatsApp Web
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      toast.success('Image downloaded! WhatsApp opened with message.');
+    }
   };
 
   const shareToFacebook = () => {
-    const message = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
-    
-    if (enhancedPhotos) {
-      // Download image
-      const link = document.createElement('a');
-      link.href = enhancedPhotos.enhanced;
-      link.download = `facebook-post-${Date.now()}.jpg`;
-      link.click();
+    if (!enhancedPhotos) {
+      toast.error('Please upload a photo first');
+      return;
     }
+
+    const message = `${sharingData.caption}\n\nPrice: ${sharingData.price}\nContact: ${sharingData.contact}\n\n${sharingData.hashtags}`;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile && navigator.share) {
+      // Try Web Share API for mobile
+      fetch(enhancedPhotos.enhanced)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], 'facebook-post.jpg', { type: 'image/jpeg' });
+          
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({
+              title: 'Share to Facebook',
+              text: message,
+              files: [file]
+            }).then(() => {
+              toast.success('Shared to Facebook successfully!');
+            }).catch(() => {
+              fallbackFacebookShare(message);
+            });
+          } else {
+            fallbackFacebookShare(message);
+          }
+        })
+        .catch(() => {
+          fallbackFacebookShare(message);
+        });
+    } else {
+      fallbackFacebookShare(message);
+    }
+  };
+  
+  const fallbackFacebookShare = (message: string) => {
+    // Download image
+    const link = document.createElement('a');
+    link.href = enhancedPhotos!.enhanced;
+    link.download = `facebook-post-${Date.now()}.jpg`;
+    link.click();
     
     // Copy message to clipboard
     navigator.clipboard.writeText(message);
     
-    // Open Facebook
-    window.open('https://www.facebook.com/', '_blank');
-    toast.success('Caption copied! Upload your image to Facebook and paste the caption.');
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // Try Facebook app deep link
+      setTimeout(() => {
+        window.location.href = 'fb://';
+      }, 1000);
+      toast.success('Image downloaded and caption copied! Opening Facebook...');
+    } else {
+      // Desktop: Open Facebook
+      window.open('https://www.facebook.com/', '_blank');
+      toast.success('Image downloaded and caption copied! Upload to Facebook and paste caption.');
+    }
   };
 
   const copyAllContent = () => {
@@ -756,37 +882,37 @@ export default function Home() {
                   <div className="grid grid-cols-2 gap-3">
                     <Button
                       onClick={() => shareToInstagram('post')}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs"
                       disabled={!enhancedPhotos}
                     >
                       <Instagram className="w-4 h-4 mr-2" />
-                      IG Post
+                      Share Post
                     </Button>
                     
                     <Button
                       onClick={() => shareToInstagram('story')}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-xs"
                       disabled={!enhancedPhotos}
                     >
                       <Instagram className="w-4 h-4 mr-2" />
-                      IG Story
+                      Share Story
                     </Button>
                     
                     <Button
                       onClick={shareToWhatsApp}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+                      className="bg-green-600 hover:bg-green-700 text-white text-xs"
                       disabled={!enhancedPhotos}
                     >
                       <MessageCircle className="w-4 h-4 mr-2" />
-                      WhatsApp
+                      Share WhatsApp
                     </Button>
                     
                     <Button
                       onClick={shareToFacebook}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs"
                     >
                       <Globe className="w-4 h-4 mr-2" />
-                      Facebook
+                      Share Facebook
                     </Button>
                   </div>
                   
