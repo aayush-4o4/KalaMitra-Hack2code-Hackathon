@@ -1,5 +1,8 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+
+const inter = Inter({
   src: '../public/fonts/inter.css',
   display: 'swap',
   variable: '--font-inter',
@@ -18,7 +21,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-inter">{children}</body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
