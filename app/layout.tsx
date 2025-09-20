@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({
-  src: '../public/fonts/inter.css',
+  subsets: ['latin', 'latin-ext'],
   display: 'swap',
   variable: '--font-inter',
 });
